@@ -9,5 +9,6 @@ style code to go into `shavit-styles.cfg`
 		"clantag"			"UNRL"
 		
 		"prespeed"			"1"
+		"specialstring"		"unrealphys"
 	}
 ```
