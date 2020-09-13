@@ -92,8 +92,8 @@ bool IsStyleUnreal(int style)
 	
 	// Shavit's timer
 	char name[128];
-	int status = Shavit_GetStyleStrings(style, sStyleName, name, sizeof(name));
-	return status == SP_ERROR_NONE && StrEqual(name, "Unreal");
+	int status = Shavit_GetStyleStrings(style, sSpecialString, name, sizeof(name));
+	return status == SP_ERROR_NONE && (StrContains(name, "unrealphys") != -1);
 }
 
 bool IsPlayerUsingUnreal(int client)
