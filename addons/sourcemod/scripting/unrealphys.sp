@@ -6,6 +6,7 @@
 #include <sdktools>
 #include <sdkhooks>
 #include <cstrike>
+#include <clientprefs>
 #include <smlib/clients>
 #include <shavit.inc>
 
@@ -45,6 +46,9 @@ bool g_bUnrealClients[MAXPLAYERS + 1];
 
 bool gB_Late = false;
 
+Handle gH_USPCookie = null;
+bool g_USPUsers[MAXPLAYERS + 1];
+
 public Plugin myinfo = 
 {
 	name = "Unreal Physics",
@@ -64,16 +68,19 @@ public void OnPluginStart()
 {	
 	// Command that reloads the gun boosting config
 	RegAdminCmd("sm_reloadgj", SM_ReloadGJ, ADMFLAG_RCON, "Reloads the gun jumping config.");
+
+	RegConsoleCmd("sm_unrealglock", Command_Glock, "Sets default unreal gun to Glock.");
+	RegConsoleCmd("sm_unrealusp", Command_USP, "Sets default unreal gun to USP.");
+	gH_USPCookie = RegClientCookie("unreal_usp", "Glock is 0. USP is 1.", CookieAccess_Protected);
 	
 	// Initialize gun boosting config
 	LoadGunJumpConfig();
 	
 	g_hModifiedUnreal = CreateConVar("unrealphys_modified", "0", "Uses modified boosting which affects boost values. boost_hor and boost_vert should be around 2000 for this version", 0, true, 0.0, true, 1.0);
 	HookConVarChange(g_hModifiedUnreal, OnModifiedUnrealChanged);
-	
+
 	AutoExecConfig(true, "unrealphys");
-	
-	CreateConVar("unrealphys_version", UNREALPHYS_VERSION, "Unreal physics version", FCVAR_NOTIFY|FCVAR_REPLICATED);
+
 	HookEvent("weapon_fire", Event_WeaponFire);
 
 	if(gB_Late)
@@ -82,6 +89,55 @@ public void OnPluginStart()
 		{
 			g_bUnrealClients[i] = IsStyleUnreal(Shavit_GetBhopStyle(i));
 		}
+	}
+}
+
+public Action Command_Glock(int client, int args)
+{
+	if(!IsValidClient(client))
+		return Plugin_Handled;
+
+	g_USPUsers[client] = false;
+	char sCookie[4];
+	IntToString(view_as<int>(g_USPUsers[client]), sCookie, 4);
+	SetClientCookie(client, gH_USPCookie, sCookie);
+
+	Shavit_PrintToChat(client, "Using Glock for Unreal.");
+	return Plugin_Handled;
+}
+
+public Action Command_USP(int client, int args)
+{
+	if(!IsValidClient(client))
+		return Plugin_Handled;
+
+	g_USPUsers[client] = true;
+	char sCookie[4];
+	IntToString(view_as<int>(g_USPUsers[client]), sCookie, 4);
+	SetClientCookie(client, gH_USPCookie, sCookie);
+
+	Shavit_PrintToChat(client, "Using USP for Unreal.");
+	return Plugin_Handled;
+}
+
+public void OnClientCookiesCached(int client)
+{
+	if(IsFakeClient(client))
+	{
+		return;
+	}
+
+	char sSetting[8];
+	GetClientCookie(client, gH_USPCookie, sSetting, 8);
+
+	if(strlen(sSetting) == 0)
+	{
+		SetClientCookie(client, gH_USPCookie, "0");
+		g_USPUsers[client] = false;
+	}
+	else
+	{
+		g_USPUsers[client] = view_as<bool>(StringToInt(sSetting));
 	}
 }
 
@@ -133,6 +189,7 @@ public void Shavit_OnStyleChanged(int client, int oldStyle, int newStyle)
 {
 	if(IsStyleUnreal(newStyle))
 	{
+		Shavit_PrintToChat(client, "Use !unrealglock or !unrealusp to set your default pistol.");
 		g_bUnrealClients[client] = true;
 		//Client_RemoveAllWeapons(client);
 		int weaponIndex = GetPlayerWeaponSlot(client, CS_SLOT_SECONDARY);
@@ -141,7 +198,10 @@ public void Shavit_OnStyleChanged(int client, int oldStyle, int newStyle)
 			CS_DropWeapon(client, weaponIndex, false, false);
 		}
 		/*weaponIndex = */
-		GivePlayerItem(client, "weapon_glock");
+		if (g_USPUsers[client])
+			GivePlayerItem(client, "weapon_usp");
+		else
+			GivePlayerItem(client, "weapon_glock");
 		
 		/*
 		if(weaponIndex != -1)
