@@ -7,7 +7,6 @@
 #include <sdkhooks>
 #include <cstrike>
 #include <clientprefs>
-#include <smlib/clients>
 #include <shavit.inc>
 
 enum struct GunJumpConfig
@@ -51,7 +50,7 @@ bool g_USPUsers[MAXPLAYERS + 1];
 
 public Plugin myinfo = 
 {
-	name = "Unreal Physics",
+	name = "[Shavit] Unreal Physics",
 	author = "blacky",
 	description = "Simulates physics from the Unreal Tournament games",
 	version = UNREALPHYS_VERSION,
@@ -67,7 +66,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 public void OnPluginStart()
 {	
 	// Command that reloads the gun boosting config
-	RegAdminCmd("sm_reloadgj", SM_ReloadGJ, ADMFLAG_RCON, "Reloads the gun jumping config.");
+	RegAdminCmd("sm_reloadunreal", SM_ReloadGJ, ADMFLAG_RCON, "Reloads the gun jumping config.");
 
 	RegConsoleCmd("sm_unrealglock", Command_Glock, "Sets default unreal gun to Glock.");
 	RegConsoleCmd("sm_unrealusp", Command_USP, "Sets default unreal gun to USP.");
@@ -76,12 +75,13 @@ public void OnPluginStart()
 	// Initialize gun boosting config
 	LoadGunJumpConfig();
 	
-	g_hModifiedUnreal = CreateConVar("unrealphys_modified", "0", "Uses modified boosting which affects boost values. boost_hor and boost_vert should be around 2000 for this version", 0, true, 0.0, true, 1.0);
+	g_hModifiedUnreal = CreateConVar("shavit_unreal_modified", "1", "Uses modified boosting which affects boost values. boost_hor and boost_vert should be around 2000 for this version", 0, true, 0.0, true, 1.0);
 	HookConVarChange(g_hModifiedUnreal, OnModifiedUnrealChanged);
 
-	AutoExecConfig(true, "unrealphys");
+	AutoExecConfig(true, "shavit-unreal");
 
 	HookEvent("weapon_fire", Event_WeaponFire);
+	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
 
 	if(gB_Late)
 	{
@@ -149,7 +149,7 @@ bool IsStyleUnreal(int style)
 	// Shavit's timer
 	char name[128];
 	int status = Shavit_GetStyleStrings(style, sSpecialString, name, sizeof(name));
-	return status == SP_ERROR_NONE && (StrContains(name, "unrealphys") != -1);
+	return status == SP_ERROR_NONE && (StrContains(name, "unreal") != -1);
 }
 
 bool IsPlayerUsingUnreal(int client)
@@ -185,12 +185,17 @@ public bool OnClientConnect(int client, char[] rejectmsg, int maxlen)
 	return true;
 }
 
-public void Shavit_OnStyleChanged(int client, int oldStyle, int newStyle)
+void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 {
-	if(IsStyleUnreal(newStyle))
+	int client = GetClientOfUserId(event.GetInt("user.id"));
+	if (g_bUnrealClients[client])
+		givegunstuff(client);
+}
+
+void givegunstuff(int client)
+{
+	if (IsPlayerAlive(client))
 	{
-		Shavit_PrintToChat(client, "Use !unrealglock or !unrealusp to set your default pistol.");
-		g_bUnrealClients[client] = true;
 		//Client_RemoveAllWeapons(client);
 		int weaponIndex = GetPlayerWeaponSlot(client, CS_SLOT_SECONDARY);
 		if(weaponIndex != -1)
@@ -199,7 +204,7 @@ public void Shavit_OnStyleChanged(int client, int oldStyle, int newStyle)
 		}
 		/*weaponIndex = */
 		if (g_USPUsers[client])
-			GivePlayerItem(client, "weapon_usp");
+			GivePlayerItem(client, (GetEngineVersion() == Engine_CSGO) ? "weapon_usp_silencer" : "weapon_usp");
 		else
 			GivePlayerItem(client, "weapon_glock");
 		
@@ -212,6 +217,16 @@ public void Shavit_OnStyleChanged(int client, int oldStyle, int newStyle)
 			RequestFrame(NextFrame_EquipWeapon, hPack);
 		}
 		*/
+	}
+}
+
+public void Shavit_OnStyleChanged(int client, int oldStyle, int newStyle)
+{
+	if(IsStyleUnreal(newStyle))
+	{
+		Shavit_PrintToChat(client, "Use !unrealglock or !unrealusp to set your default pistol.");
+		g_bUnrealClients[client] = true;
+		givegunstuff(client);
 	}
 	else
 	{
@@ -328,7 +343,8 @@ public void Event_WeaponFire(Event event, const char[] name, bool dontBroadcast)
 	// Stop boost if invalid weapon
 	char sWeapon[64];
 	GetEventString(event, "weapon", sWeapon, sizeof(sWeapon));
-	Format(sWeapon, sizeof(sWeapon), "weapon_%s", sWeapon);
+	if (StrContains(sWeapon, "weapon_") == -1)
+		Format(sWeapon, sizeof(sWeapon), "weapon_%s", sWeapon);
 	int GunConfig = FindWeaponConfigByWeaponName(sWeapon);
 	if(GunConfig == -1)
 		return;
@@ -373,9 +389,9 @@ public void Event_WeaponFire(Event event, const char[] name, bool dontBroadcast)
 
 			float vVel[3];
 			float vResult[3];
-			Entity_GetAbsVelocity(client, vVel);
+			GetEntPropVector(client, Prop_Data, "m_vecAbsVelocity", vVel);
 			AddVectors(vPush, vVel, vResult);
-			Entity_SetAbsVelocity(client, vResult);
+			TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, vResult);
 		}
 	}
 	
@@ -547,8 +563,7 @@ OnClientDoubleTappedKey(int client, int Key)
 		vResult[2] = 251.0;
 		
 		// This line and following timer allows setting a player's vertical velocity when they are on the ground to something lower than 250.0
-		//TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, vResult);
-		Entity_SetAbsVelocity(client, vResult);
+		TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, vResult);
 		
 		DataPack hData;
 		CreateDataTimer(0.0, Timer_Dodge, hData, TIMER_DATA_HNDL_CLOSE);
@@ -574,8 +589,7 @@ public Action Timer_Dodge(Handle timer, DataPack data)
 	vVel[1] = ReadPackFloat(data);
 	vVel[2] = 150.0;
 	
-	//TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, vVel);
-	Entity_SetAbsVelocity(client, vVel);
+	TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, vVel);
 	
 	g_bWaitingForGround[client] = true;
 	g_bCanDodge[client]         = false;
@@ -591,8 +605,7 @@ CheckForJumpTap(int client, int buttons)
 		if(!(g_LastButtons[client] & IN_JUMP) && (buttons & IN_JUMP) && g_Jumped[client] == false && (-60.0 <= vVel[2] <= 90.0))
 		{
 			vVel[2] = 290.0;
-			//TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, vVel);
-			Entity_SetAbsVelocity(client, vVel);
+			TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, vVel);
 			
 			g_Jumped[client] = true;
 			
