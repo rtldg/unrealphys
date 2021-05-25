@@ -429,7 +429,7 @@ int Unreal_GetButtons(int client)
 	return g_UnaffectedButtons[client];
 }
 
-public Action Shavit_OnUserCmdPre(int client, int &buttons, int &impulse, float vel[3], float angles[3], TimerStatus status, int track, int style, stylesettings_t stylesettings, int mouse[2])
+public Action Shavit_OnUserCmdPre(int client, int &buttons)
 {
 	g_UnaffectedButtons[client] = buttons;
 }
