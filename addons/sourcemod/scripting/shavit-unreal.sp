@@ -7,7 +7,9 @@
 #include <sdkhooks>
 #include <cstrike>
 #include <clientprefs>
-#include <shavit.inc>
+
+#undef REQUIRE_PLUGIN
+#include <shavit>
 
 enum struct GunJumpConfig
 {
