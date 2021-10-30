@@ -276,7 +276,7 @@ FindWeaponConfigByWeaponName(const char[] sWeapon)
 void LoadGunJumpConfig()
 {
 	decl String:sPath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, sPath, sizeof(sPath), "configs/gunjump.cfg");
+	BuildPath(Path_SM, sPath, sizeof(sPath), "configs/shavit-unreal.cfg");
 	
 	new Handle:kv = CreateKeyValues("Gun Jump Settings");
 	FileToKeyValues(kv, sPath);
@@ -319,7 +319,7 @@ void LoadGunJumpConfig()
 	}
 	else
 	{
-		LogError("Something went wrong reading from the gunjump.cfg file.");
+		LogError("Something went wrong reading from the shavit-unreal.cfg file.");
 	}
 }
 
