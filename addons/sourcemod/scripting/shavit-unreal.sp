@@ -189,9 +189,34 @@ public bool OnClientConnect(int client, char[] rejectmsg, int maxlen)
 
 void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 {
-	int client = GetClientOfUserId(event.GetInt("user.id"));
+	int client = GetClientOfUserId(event.GetInt("userid"));
 	if (g_bUnrealClients[client])
 		givegunstuff(client);
+}
+
+public void OnEntityCreated(int entity, const char[] classname)
+{
+	if (StrEqual(classname, "weapon_glock"))
+	{
+		SDKHook(entity, SDKHook_TouchPost, Hook_GunTouchPost);
+	}
+}
+
+// counter-act bhoptimer !Hud setting that you can use to make glocks burst fire
+public Action Hook_GunTouchPost(int entity, int client)
+{
+	if (1 <= client <= MaxClients && g_bUnrealClients[client])
+	{
+		char classname[64];
+		GetEntityClassname(entity, classname, sizeof(classname));
+
+		if (StrEqual(classname, "weapon_glock"))
+		{
+			SetEntProp(entity, Prop_Send, "m_bBurstMode", 0);
+		}
+	}
+
+	return Plugin_Continue;
 }
 
 void givegunstuff(int client)
