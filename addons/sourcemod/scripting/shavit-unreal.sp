@@ -10,7 +10,7 @@
 #include <clientprefs>
 
 #undef REQUIRE_PLUGIN
-#include <shavit>
+#include <shavit/core>
 
 chatstrings_t gS_ChatStrings;
 
