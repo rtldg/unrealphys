@@ -115,7 +115,7 @@ Action Command_Glock(int client, int args)
 	IntToString(view_as<int>(g_USPUsers[client]), sCookie, 4);
 	SetClientCookie(client, gH_USPCookie, sCookie);
 
-	Shavit_PrintToChat(client, "Using %sglock %sfor Unreal", gS_ChatStrings.sVariable, gS_ChatStrings.sText);
+	Shavit_PrintToChat(client, "Using %sGlock %sfor Unreal", gS_ChatStrings.sVariable, gS_ChatStrings.sText);
 	return Plugin_Handled;
 }
 
